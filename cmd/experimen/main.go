@@ -1,151 +1,23 @@
 package main
 
 import (
-	"errors"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
 
-	"gorm.io/gorm"
+	"google.golang.org/api/idtoken"
 )
 
-var ErrPermission = errors.New("permission error")
-
-type Policy int
-
-const (
-	Allow Policy = 1
-	Deny  Policy = 0
-)
-
-type Action string
-
-const (
-	Create Action = "create"
-	Update Action = "update"
-	Read   Action = "read"
-	Delete Action = "delete"
-)
-
-type Entity interface {
-	Permission(identity Identity, action Action) *EntityPermission
-	GetDomainID() string
-}
-
-type Identity interface {
-	IsSuperUser() bool
-	IdentityID() string
-}
-
-type EntityPermission struct {
-	IdentityID string `gorm:"primaryKey"`
-	DomainID   string `gorm:"primaryKey"`
-	EntityID   string `gorm:"primaryKey"`
-	Action     Action `gorm:"primaryKey"`
-	Policy     Policy
-}
-
-type SecQuery struct {
-	identity    Identity
-	SecTx       *gorm.DB
-	Tx          *gorm.DB
-	Permission  []*EntityPermission
-	PermHandler func(perm *EntityPermission) *EntityPermission
-}
-
-func NewSecQuery(
-	identity Identity,
-	tx *gorm.DB,
-
-) *SecQuery {
-	return &SecQuery{
-		identity:    identity,
-		SecTx:       tx,
-		Tx:          tx,
-		Permission:  []*EntityPermission{},
-		PermHandler: func(perm *EntityPermission) *EntityPermission { return perm },
-	}
-}
-
-func (q *SecQuery) copy() *SecQuery {
-	return &SecQuery{
-		identity:    q.identity,
-		SecTx:       q.SecTx,
-		Tx:          q.Tx,
-		Permission:  q.Permission,
-		PermHandler: q.PermHandler,
-	}
-}
-
-func (q *SecQuery) CheckPermission() error {
-	if q.identity.IsSuperUser() {
-		return nil
-	}
-
-	permission := []*EntityPermission{}
-
-	query := q.SecTx.Model(&EntityPermission{})
-	for _, perm := range q.Permission {
-		query = query.Or(perm)
-	}
-
-	err := query.Find(&permission).Error
+func main() {
+	tokenString := "eyJhbGciOiJSUzI1NiIsImtpZCI6ImY1ZjRiZjQ2ZTUyYjMxZDliNjI0OWY3MzA5YWQwMzM4NDAwNjgwY2QiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI5NjU0Mzc3MzUxNTAtYmJybm80anYxbGViNnAwYm1uaWFzbDMyYWsydXJkYjUuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI5NjU0Mzc3MzUxNTAtYmJybm80anYxbGViNnAwYm1uaWFzbDMyYWsydXJkYjUuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMDcyNDM3NjQ4NzE4MTU0MDUxNjIiLCJlbWFpbCI6InBkY2RldmVsb3BlZEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmJmIjoxNjk5NDE4MTkzLCJuYW1lIjoicGRjb2tlIGRvdGtvbSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NKNjZ5aFA3a0VlNTYxQl9Cd0RkV0sxMVNCdENWQjZRYkxuY0tVNWJXU3k9czk2LWMiLCJnaXZlbl9uYW1lIjoicGRjb2tlIiwiZmFtaWx5X25hbWUiOiJkb3Rrb20iLCJsb2NhbGUiOiJlbiIsImlhdCI6MTY5OTQxODQ5MywiZXhwIjoxNjk5NDIyMDkzLCJqdGkiOiIxYTcwMDc2ODEyMDFkNmIxNTYyNzVjNDE0OTVlYzlhZDMxYzZlNGIyIn0.euZ393u7oh2avhUHWrJmtrsyv7MWjwr5bfeWJNrMHGgXg1LEXePi6Dbor6agtArypJ8K8xuPetuo1BIjfkjq9QiRcxGh4JjwBqYbkTLOPHxacEv4iXE97XLeRGXVsYSwF0QZI9Jfm4y_3uzS_-jlAiAUSQ2eAvTlY2rKXpfdbn37NFE4fbzTQCLanhShC-GE_4nJ5YGGad9J-1sKCG2IwvakNKH6b9ujSjdgksv-Gy75_EDUb_MzNfRPQxJuGLKP7RUXdw-1koDGj0bRX7p14QkaQI5OsrgeGRAmERZQPuRc-5is379Fz3hcdnhHMQ43riTLg2sc8ecZfc7IK0gKoA"
+	payload, err := idtoken.Validate(context.Background(), tokenString, "965437735150-bbrno4jv1leb6p0bmniasl32ak2urdb5.apps.googleusercontent.com")
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	if len(q.Permission) != len(permission) {
-		return ErrPermission
-	}
+	data, _ := json.Marshal(payload.Claims)
+	log.Println(string(data))
 
-	for _, policy := range permission {
-		if policy.Policy == Deny {
-			return ErrPermission
-		}
-	}
-
-	return err
-
-}
-
-func (q *SecQuery) Model(value Entity) *SecQuery {
-	newq := q.copy()
-	newq.PermHandler = func(perm *EntityPermission) *EntityPermission {
-		permb := value.Permission(q.identity, "")
-		perm.DomainID = value.GetDomainID()
-		perm.EntityID = permb.EntityID
-
-		return perm
-	}
-
-	newq.Tx = newq.Tx.Model(value).Where(value)
-
-	return newq
-}
-
-func (q *SecQuery) Find(value Entity) *gorm.DB {
-	q.Permission = append(q.Permission,
-		q.PermHandler(value.Permission(q.identity, Read)),
-	)
-
-	err := q.CheckPermission()
-	if err != nil {
-		return &gorm.DB{
-			Error: ErrPermission,
-		}
-	}
-	return q.Tx.Find(value)
-}
-
-func (q *SecQuery) Save(value Entity) *gorm.DB {
-	q.Permission = append(q.Permission,
-		q.PermHandler(value.Permission(q.identity, Create)),
-		q.PermHandler(value.Permission(q.identity, Update)),
-	)
-
-	err := q.CheckPermission()
-	if err != nil {
-		return &gorm.DB{
-			Error: ErrPermission,
-		}
-	}
-
-	return q.Tx.Save(value)
+	fmt.Print(payload.Claims)
 }
