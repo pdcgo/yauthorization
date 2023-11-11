@@ -30,6 +30,7 @@ func DbScenario(t *testing.T, handle func(tx *gorm.DB)) {
 		&yauthorization.EntityPermission{},
 		&MockUpBy{},
 		&yauthorization.RoleIdentity{},
+		&yauthorization.EntityInfo{},
 	)
 
 	handle(db)

@@ -1,6 +1,10 @@
 package yauthorization
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 type Policy int
 
@@ -26,6 +30,11 @@ type EntityPermission struct {
 	Policy     Policy `json:"policy"`
 }
 
+// GetEntityID implements Entity.
+func (*EntityPermission) GetEntityID() string {
+	return "EntityPermission"
+}
+
 // GetDomainID implements Entity.
 func (perm *EntityPermission) GetDomainID() uint {
 	return perm.DomainID
@@ -36,18 +45,26 @@ func (perm *EntityPermission) Permission(identity Identity, action Action) *Enti
 	return &EntityPermission{
 		IdentityID: identity.IdentityID(),
 		DomainID:   perm.GetDomainID(),
-		EntityID:   "EntityPermission",
+		EntityID:   perm.GetEntityID(),
 		Policy:     Deny,
 		Action:     action,
 	}
 }
 
 type RoleIdentity struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
-	Key       string    `json:"key" gorm:"index:domain_key,unique"`
-	DomainID  uint      `json:"domain_id" gorm:"index:domain_key,unique"`
+	ID       uint   `gorm:"primarykey" json:"id"`
+	Key      string `json:"key" gorm:"index:domain_key,unique"`
+	DomainID uint   `json:"domain_id" gorm:"index:domain_key,unique"`
+
+	Permissions []*EntityPermission `json:"permission" gorm:"foreignKey:IdentityID"`
+
 	CreatedAt time.Time `json:"create_at"`
 	UpdatedAt time.Time `json:"update_at"`
+}
+
+// GetEntityID implements Entity.
+func (r *RoleIdentity) GetEntityID() string {
+	return "RoleIdentity"
 }
 
 // IdentityID implements Identity.
@@ -74,4 +91,9 @@ func (role *RoleIdentity) Permission(identity Identity, action Action) *EntityPe
 		Policy:     Deny,
 		Action:     action,
 	}
+}
+
+type EntityInfo struct {
+	Key    string                      `gorm:"primaryKey;autoIncrement:false" json:"key"`
+	Action datatypes.JSONSlice[Action] `json:"action"`
 }

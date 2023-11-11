@@ -14,6 +14,21 @@ type MockIdentity struct {
 	Role      *yauthorization.RoleIdentity
 }
 
+// DeleteRole implements yauthorization.Identity.
+func (*MockIdentity) DeleteRole(tx *gorm.DB, roleID uint) error {
+	panic("unimplemented")
+}
+
+// GetRole implements yauthorization.Identity.
+func (*MockIdentity) GetRole(tx *gorm.DB, domainID uint) (*yauthorization.RoleIdentity, error) {
+	panic("unimplemented")
+}
+
+// SetRole implements yauthorization.Identity.
+func (*MockIdentity) SetRole(tx *gorm.DB, role *yauthorization.RoleIdentity) error {
+	panic("unimplemented")
+}
+
 func (ident *MockIdentity) WithPermission(
 	t *testing.T,
 	perms []*yauthorization.EntityPermission,
@@ -72,6 +87,11 @@ type MockOrder struct {
 	DomainID uint
 }
 
+// GetEntityID implements yauthorization.Entity.
+func (*MockOrder) GetEntityID() string {
+	return "MockOrder"
+}
+
 func (mo *MockOrder) GetDomainID() uint {
 	return mo.DomainID
 }
@@ -80,7 +100,7 @@ func (mo *MockOrder) Permission(identity yauthorization.Identity, action yauthor
 	return &yauthorization.EntityPermission{
 		IdentityID: identity.IdentityID(),
 		DomainID:   mo.GetDomainID(),
-		EntityID:   "MockOrder",
+		EntityID:   mo.GetEntityID(),
 		Policy:     yauthorization.Deny,
 		Action:     action,
 	}
@@ -95,14 +115,20 @@ func (mo *MockOrder) Permission(identity yauthorization.Identity, action yauthor
 // }
 
 type MockUpBy struct {
+	ID          uint `gorm:"primarykey"`
 	UpdatedByID uint
 }
 
-func (*MockUpBy) Permission(identity yauthorization.Identity, action yauthorization.Action) *yauthorization.EntityPermission {
+// GetEntityID implements yauthorization.Entity.
+func (*MockUpBy) GetEntityID() string {
+	return "MockUpBy"
+}
+
+func (m *MockUpBy) Permission(identity yauthorization.Identity, action yauthorization.Action) *yauthorization.EntityPermission {
 	return &yauthorization.EntityPermission{
 		IdentityID: identity.IdentityID(),
 		DomainID:   1,
-		EntityID:   "MockUpBy",
+		EntityID:   m.GetEntityID(),
 		Policy:     yauthorization.Deny,
 		Action:     action,
 	}

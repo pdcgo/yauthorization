@@ -1,8 +1,8 @@
 package yauthorization_test
 
 import (
+	"encoding/json"
 	"errors"
-	"log"
 	"testing"
 
 	"github.com/pdcgo/yauthorization"
@@ -123,17 +123,22 @@ func TestMain(t *testing.T) {
 
 		})
 
-		t.Run("test support by id", func(t *testing.T) {
-			identity := mock.MockIdentity{}
+		t.Run("test support by id dengan super user", func(t *testing.T) {
+			identity := mock.MockIdentity{
+				SuperUser: true,
+			}
 
 			dataup := mock.MockUpBy{}
 			secquery := yauthorization.NewSecQuery(&identity, tx)
 
-			secquery.Save(&dataup)
+			err := secquery.Save(&dataup).Error
+
+			data, _ := json.MarshalIndent(err, "", "\t")
+
+			assert.Nil(t, err, string(data))
 
 			assert.NotEmpty(t, dataup.UpdatedByID)
 			assert.NotEqual(t, 0, dataup.UpdatedByID)
-			log.Println("dataasdasd", dataup.UpdatedByID)
 
 		})
 

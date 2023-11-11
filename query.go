@@ -30,6 +30,7 @@ func (err *PermissionError) Unwrap() error {
 type Entity interface {
 	Permission(identity Identity, action Action) *EntityPermission
 	GetDomainID() uint
+	GetEntityID() string
 }
 
 type EntityUpdateBy interface {
@@ -40,6 +41,9 @@ type Identity interface {
 	IsSuperUser() bool
 	IdentityID() uint
 	GetUserID() uint
+	SetRole(tx *gorm.DB, role *RoleIdentity) error
+	DeleteRole(tx *gorm.DB, roleID uint) error
+	GetRole(tx *gorm.DB, domainID uint) (*RoleIdentity, error)
 }
 
 type SecQuery struct {
@@ -111,6 +115,27 @@ func (q *SecQuery) CheckPermission() error {
 
 	return nil
 
+}
+
+type RawQuery interface {
+	Entity
+	Raw() string
+}
+
+func (q *SecQuery) Preload(query RawQuery, args ...interface{}) *SecQuery {
+	perm := query.Permission(q.identity, Read)
+	entityID := perm.EntityID
+	perm = q.PermHandler(perm)
+	perm.EntityID = entityID
+
+	newq := q.copy()
+
+	newq.Permission = append(q.Permission,
+		perm,
+	)
+
+	newq.Tx = newq.Tx.Preload(query.Raw(), args...)
+	return newq
 }
 
 func (q *SecQuery) Model(value Entity) *SecQuery {
