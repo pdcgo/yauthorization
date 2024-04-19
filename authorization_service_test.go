@@ -36,7 +36,23 @@ func TestRoleService(t *testing.T) {
 					data, _ := json.MarshalIndent(err, "", "\t")
 					assert.Nil(t, err, string(data))
 
+					t.Run("test update permission in role", func(t *testing.T) {
+						err := authsrv.RoleUpdatePermission(&userdentity, &role, nil, []*yauthorization.EntityPermission{})
+						data, _ := json.MarshalIndent(err, "", "\t")
+						assert.Nil(t, err, string(data))
+					})
+
+					t.Run("test role delete berhasil", func(t *testing.T) {
+						err := authsrv.RoleDelete(&userdentity, &yauthorization.RoleIdentity{
+							Key:      "cs",
+							DomainID: domain.ID,
+						})
+						data, _ := json.MarshalIndent(err, "", "\t")
+						assert.Nil(t, err, string(data))
+					})
+
 				})
+
 			})
 
 		})
@@ -91,14 +107,6 @@ func TestRoleService(t *testing.T) {
 
 			assert.Nil(t, err)
 			assert.NotEmpty(t, hasil)
-		})
-
-		t.Run("test role delete", func(t *testing.T) {
-			t.Error("not implemented")
-		})
-
-		t.Run("test update permission", func(t *testing.T) {
-			t.Error("not implemented")
 		})
 	})
 }

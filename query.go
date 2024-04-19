@@ -164,7 +164,7 @@ func (q *SecQuery) Delete(value Entity) *gorm.DB {
 			Error: err,
 		}
 	}
-	return q.Tx.Delete(value)
+	return q.Tx.Delete(value, value)
 }
 
 func (q *SecQuery) Find(value Entity) *gorm.DB {
